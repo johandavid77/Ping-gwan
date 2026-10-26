@@ -1,0 +1,19 @@
+[package]
+name = "ping-gwan"
+version = "0.1.0"
+edition = "2021"
+authors = ["Johan David Montes <johandavid77>"]
+description = "Un monitor local ultrarrápido de disponibilidad web (Uptime/Ping) con SQLite, config TOML y Dashboard Web en Axum."
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "fs"] }

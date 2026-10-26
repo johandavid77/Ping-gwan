@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping-gwan | Uptime Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen p-6">
+    <div class="max-w-6xl mx-auto">
+        <!-- Cabecera -->
+        <header class="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
+            <h1 class="text-3xl font-bold flex items-center gap-2">
+                <span>🐧 Ping-gwan</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/30">Live Monitor</span>
+            </h1>
+            <div class="flex items-center gap-3">
+                <button onclick="openSettingsModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold transition border border-gray-700 flex items-center gap-2">
+                    ⚙️ Ajustes
+                </button>
+                <button onclick="openAddModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+                    ➕ Nuevo Objetivo
+                </button>
+            </div>
+        </header>
+
+        <!-- Tarjetas de Resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow">
+                <p class="text-gray-400 text-sm">Total Sitios</p>
+                <p id="total-sites" class="text-2xl font-bold mt-1">0</p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow">
+                <p class="text-gray-400 text-sm">Sitios UP</p>
+                <p id="sites-up" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow">
+                <p class="text-gray-400 text-sm">Sitios DOWN</p>
+                <p id="sites-down" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl shadow">
+                <p class="text-gray-400 text-sm">Latencia Promedio</p>
+                <p id="avg-latency" class="text-2xl font-bold text-cyan-400 mt-1">0 ms</p>
+            </div>
+        </div>
+
+        <!-- Lista de Objetivos Monitoreados -->
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow">
+            <h2 class="text-xl font-semibold mb-2">Servicios Activos</h2>
+            <p class="text-xs text-gray-400 mb-4">Haz clic en cualquier tarjeta para ver gráficos de velocidad y tiempo de monitoreo.</p>
+            <div id="targets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Se llena dinámicamente con JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALLES Y GRÁFICOS DE LATENCIA -->
+    <div id="detailModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl max-w-3xl w-full p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-bold text-emerald-400">Detalles del Servicio</h3>
+                    <p id="modalUrl" class="text-xs text-gray-400"></p>
+                </div>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-white text-xl font-bold px-2">✕</button>
+            </div>
+
+            <!-- Estadísticas rápidas modal (4 columnas con tiempo de monitoreo) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div class="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                    <span class="text-xs text-gray-400">Latencia Actual</span>
+                    <p id="modalCurrentLatency" class="text-lg font-bold text-cyan-400 mt-1">-</p>
+                </div>
+                <div class="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                    <span class="text-xs text-gray-400">Estado Reciente</span>
+                    <p id="modalStatus" class="text-lg font-bold mt-1">-</p>
+                </div>
+                <div class="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                    <span class="text-xs text-gray-400">Total Chequeos</span>
+                    <p id="modalTotalChecks" class="text-lg font-bold text-gray-200 mt-1">-</p>
+                </div>
+                <div class="bg-gray-950 p-3 rounded-lg border border-gray-800 text-center">
+                    <span class="text-xs text-gray-400">Monitoreando Desde</span>
+                    <p id="modalFirstCheck" class="text-xs font-semibold text-emerald-400 mt-2">-</p>
+                </div>
+            </div>
+
+            <!-- Gráfico Chart.js -->
+            <div class="bg-gray-950 p-4 rounded-xl border border-gray-800 relative h-64">
+                <canvas id="latencyChart"></canvas>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeDetailModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold transition">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AGREGAR OBJETIVO -->
+    <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4">Agregar Nuevo Objetivo</h3>
+            <form id="addTargetForm" onsubmit="createTarget(event)">
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Nombre del Servicio</label>
+                    <input type="text" id="targetName" required placeholder="Ej. Mi Servidor API" 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm text-gray-400 mb-1">URL (HTTP / HTTPS)</label>
+                    <input type="url" id="targetUrl" required placeholder="https://api.misitio.com" 
+                        class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeAddModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold transition">Cancelar</button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: AJUSTES -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl max-w-xl w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><span>⚙️</span> Ajustes de Notificaciones Remotas</h3>
+            <form id="settingsForm" onsubmit="saveNotifications(event)" class="space-y-6">
+                <div class="bg-gray-950 border border-gray-800 p-4 rounded-xl">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold text-cyan-400 flex items-center gap-2">✈️ Telegram Bot</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="tgEnabled" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Bot Token</label>
+                            <input type="text" id="tgBotToken" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" 
+                                class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-cyan-500 font-mono text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Chat ID</label>
+                            <input type="text" id="tgChatId" placeholder="-100123456789" 
+                                class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-cyan-500 font-mono text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-950 border border-gray-800 p-4 rounded-xl">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-bold text-emerald-400 flex items-center gap-2">💬 WhatsApp Webhook</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="waEnabled" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Webhook URL</label>
+                            <input type="url" id="waWebhookUrl" placeholder="https://api.whatsapp.com/v1/messages" 
+                                class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">API Token</label>
+                            <input type="password" id="waApiToken" placeholder="••••••••••••••••••••" 
+                                class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeSettingsModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm font-semibold transition">Cancelar</button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Guardar Configuración</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let latencyChart = null;
+        let cachedTargets = [];
+
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); document.getElementById('addModal').classList.add('flex'); }
+        function closeAddModal() { document.getElementById('addModal').classList.remove('flex'); document.getElementById('addModal').classList.add('hidden'); }
+        function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); document.getElementById('settingsModal').classList.add('flex'); loadNotificationsConfig(); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('flex'); document.getElementById('settingsModal').classList.add('hidden'); }
+        function closeDetailModal() { document.getElementById('detailModal').classList.remove('flex'); document.getElementById('detailModal').classList.add('hidden'); }
+
+        async function openDetailModal(id, name, url) {
+            document.getElementById('modalTitle').innerText = name;
+            document.getElementById('modalUrl').innerText = url;
+            document.getElementById('detailModal').classList.remove('hidden');
+            document.getElementById('detailModal').classList.add('flex');
+
+            // Encontrar información de tiempo de monitoreo en caché
+            const targetObj = cachedTargets.find(t => t.target.id === id);
+            if (targetObj && targetObj.first_check) {
+                document.getElementById('modalFirstCheck').innerText = targetObj.first_check;
+            } else {
+                document.getElementById('modalFirstCheck').innerText = 'Reciente';
+            }
+
+            try {
+                const res = await fetch(`/api/targets/${id}/logs`);
+                const logs = await res.json();
+
+                let totalChecks = logs.length;
+                let lastLog = totalChecks > 0 ? logs[logs.length - 1] : null;
+
+                document.getElementById('modalCurrentLatency').innerText = lastLog && lastLog.latency_ms !== null ? lastLog.latency_ms + ' ms' : 'N/A';
+                document.getElementById('modalStatus').innerHTML = lastLog && lastLog.is_up ? '<span class="text-emerald-400">UP ✅</span>' : '<span class="text-rose-400">DOWN ❌</span>';
+                document.getElementById('modalTotalChecks').innerText = totalChecks;
+
+                const labels = logs.map(l => l.checked_at.split(' ')[1] || l.checked_at);
+                const data = logs.map(l => l.latency_ms || 0);
+
+                const ctx = document.getElementById('latencyChart').getContext('2d');
+                if (latencyChart) latencyChart.destroy();
+
+                latencyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Latencia (ms)',
+                            data: data,
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+                            y: { grid: { color: '#1f2937' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Error cargando historial del objetivo:", e);
+            }
+        }
+
+        async function fetchDashboardData() {
+            try {
+                const res = await fetch('/api/targets');
+                cachedTargets = await res.json();
+                
+                let total = cachedTargets.length;
+                let up = cachedTargets.filter(t => t.is_up).length;
+                let down = total - up;
+                let totalLat = cachedTargets.reduce((acc, t) => acc + (t.last_latency_ms || 0), 0);
+                let avgLat = total > 0 ? Math.round(totalLat / total) : 0;
+
+                document.getElementById('total-sites').innerText = total;
+                document.getElementById('sites-up').innerText = up;
+                document.getElementById('sites-down').innerText = down;
+                document.getElementById('avg-latency').innerText = avgLat + ' ms';
+
+                const listContainer = document.getElementById('targets-list');
+                listContainer.innerHTML = '';
+
+                cachedTargets.forEach(t => {
+                    const statusColor = t.is_up ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                    const dotColor = t.is_up ? 'bg-emerald-500' : 'bg-rose-500';
+                    
+                    listContainer.innerHTML += `
+                        <div class="border border-gray-800 bg-gray-950 p-4 rounded-lg flex justify-between items-center shadow hover:border-emerald-500/50 transition cursor-pointer" onclick="openDetailModal(${t.target.id}, '${t.target.name}', '${t.target.url}')">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full ${dotColor}"></span>
+                                    <h3 class="font-bold text-lg">${t.target.name}</h3>
+                                </div>
+                                <span class="text-sm text-gray-400 hover:underline">${t.target.url}</span>
+                            </div>
+                            <div class="flex items-center gap-4" onclick="event.stopPropagation()">
+                                <div class="text-right">
+                                    <span class="px-2 py-1 text-xs rounded-full border ${statusColor}">${t.is_up ? 'UP ✅' : 'DOWN ❌'}</span>
+                                    <p class="text-xs text-gray-400 mt-1">${t.last_latency_ms !== null ? t.last_latency_ms + ' ms' : 'N/A'}</p>
+                                </div>
+                                <button onclick="deleteTarget(${t.target.id})" class="text-gray-500 hover:text-rose-400 p-2 transition rounded-lg hover:bg-rose-500/10" title="Eliminar objetivo">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error("Error cargando datos del dashboard:", e);
+            }
+        }
+
+        async function createTarget(event) {
+            event.preventDefault();
+            const name = document.getElementById('targetName').value;
+            const url = document.getElementById('targetUrl').value;
+
+            try {
+                const response = await fetch('/api/targets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url })
+                });
+
+                if (response.ok) {
+                    document.getElementById('addTargetForm').reset();
+                    closeAddModal();
+                    fetchDashboardData();
+                } else {
+                    alert('Error al guardar el objetivo.');
+                }
+            } catch (err) {
+                console.error('Error de red:', err);
+            }
+        }
+
+        async function deleteTarget(id) {
+            if (!confirm('¿Estás seguro de eliminar este objetivo y todo su historial?')) return;
+
+            try {
+                const response = await fetch(`/api/targets/${id}`, { method: 'DELETE' });
+                if (response.ok) fetchDashboardData();
+                else alert('Error al eliminar el objetivo.');
+            } catch (err) {
+                console.error('Error de red:', err);
+            }
+        }
+
+        async function loadNotificationsConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const cfg = await res.json();
+                document.getElementById('tgEnabled').checked = cfg.telegram.enabled;
+                document.getElementById('tgBotToken').value = cfg.telegram.bot_token;
+                document.getElementById('tgChatId').value = cfg.telegram.chat_id;
+                document.getElementById('waEnabled').checked = cfg.whatsapp.enabled;
+                document.getElementById('waWebhookUrl').value = cfg.whatsapp.webhook_url;
+                document.getElementById('waApiToken').value = cfg.whatsapp.api_token;
+            } catch (err) {
+                console.error('Error cargando la configuración:', err);
+            }
+        }
+
+        async function saveNotifications(event) {
+            event.preventDefault();
+            const payload = {
+                telegram: {
+                    enabled: document.getElementById('tgEnabled').checked,
+                    bot_token: document.getElementById('tgBotToken').value,
+                    chat_id: document.getElementById('tgChatId').value
+                },
+                whatsapp: {
+                    enabled: document.getElementById('waEnabled').checked,
+                    webhook_url: document.getElementById('waWebhookUrl').value,
+                    api_token: document.getElementById('waApiToken').value
+                }
+            };
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    alert('Configuración de notificaciones guardada con éxito.');
+                    closeSettingsModal();
+                } else {
+                    alert('Error guardando la configuración.');
+                }
+            } catch (err) {
+                console.error('Error de red:', err);
+            }
+        }
+
+        fetchDashboardData();
+        setInterval(fetchDashboardData, 5000);
+    </script>
+</body>
+</html>

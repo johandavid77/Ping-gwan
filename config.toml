@@ -1,0 +1,22 @@
+[general]
+check_interval_secs = 30
+database_path = "pinggwan.db"
+web_port = 7070
+
+[notifications.telegram]
+enabled = false
+bot_token = "TU_BOT_TOKEN_AQUI"
+chat_id = "TU_CHAT_ID_AQUI"
+
+[notifications.whatsapp]
+enabled = false
+webhook_url = "https://api.whatsapp.com/v1/messages"
+api_token = "TU_TOKEN_WHATSAPP_AQUI"
+
+[[targets]]
+name = "Google Cloud"
+url = "https://www.google.com"
+
+[[targets]]
+name = "Sitio Web Prueba HTTP"
+url = "https://httpbin.org/status/200"
